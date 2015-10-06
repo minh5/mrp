@@ -125,21 +125,27 @@ nnet_tune
 results$nnet <- predict(nnet_tune, newdata = test, type = 'prob')
 
 
-final <- as.data.frame(results$obs)
+eval <- as.data.frame(results$obs)
 for (i in 2:ncol(results)){
   sub <- as.data.frame(results[,i][2])
-  final <- cbind(final,sub)
+  eval <- cbind(eval,sub)
 }
-final <- as.data.frame(final)
-names(final) <- names(results)
-final$obs <- ifelse(final$obs == 'Yes', 1, 0)
+eval <- as.data.frame(eval)
+names(eval) <- names(results)
+eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
 
 #model evaluation
 require(scoring)
 
-mean(brierscore(obs ~ rf, data = final))
-mean(brierscore(obs ~ logit, data = final))
-mean(brierscore(obs ~ cart, data = final))
-mean(brierscore(obs ~ nnet, data = final))
+mean(brierscore(obs ~ rf, data = eval))
+mean(brierscore(obs ~ logit, data = eval))
+mean(brierscore(obs ~ cart, data = eval))
+mean(brierscore(obs ~ nnet, data = eval)) #winner
 
+# applying models
+data$prediction <- predict(nnet_tune, newdata = data, type = 'prob')
+data <- cbind(data, tmpData$demState)
+names(data)[ncol(data)] <- 'demState'
 
+#getting statewide estimates
+tapply(data$prediction[[2]], data$demState, mean)
