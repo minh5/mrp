@@ -1,4 +1,4 @@
-.csv
-.doc
-.RData
-.pdf
+*.csv
+*.doc
+*.RData
+*.pdf
