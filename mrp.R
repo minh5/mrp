@@ -1,5 +1,8 @@
 #Loading libraries
+setwd("~/mrp/")
 library(caret)
+
+load("data.RData")
 
 #break up ages, education, and political ideology
 ageGroups <- as.data.frame(cut(tmpData$demAgeFull, breaks = c(0,18,35,55,Inf), labels = c("under 18","18-35","35-55", "55+")))
@@ -43,6 +46,8 @@ right <- as.data.frame(ifelse(tmpData$nr1 == 1, 1, 0))
 names(right) <- "right"
 data <- cbind(right, data)
 data$right <- as.factor(data$right)
+levels(data$right) <- c("No", "Yes")
+
 #create training and test set
 split <- createDataPartition(data$right, p=.8)[[1]]
 train<-data[split,]
@@ -70,7 +75,8 @@ rf_tune <- train(right ~ . ,
                  tuneGrid = tuningGrid,
                  trControl = control)
 rf_tune
-results$rf <- predict(rf_tune, newdata=test)
+results$rf <- predict.train(rf_tune, newdata=test)
+
 
 #Linear Discriminant Analysis
 require(lda)
@@ -153,7 +159,6 @@ nb_tune
 results$nb <- predict(nb_tune, newdata = test)
 
 #Looking at the results thus far and creating a confusion matrix for model selection
-results
 names(results)[1]<-"obs"
 
 #confusion matrix for LDA
@@ -187,4 +192,3 @@ confusionMatrix(results$nb , results$obs)
 # Neural Net
 confusionMatrix(nnet_tune, norm = 'average')
 confusionMatrix(results$nnet, results$obs)
-
