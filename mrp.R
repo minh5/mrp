@@ -63,7 +63,7 @@ control <- trainControl(method = "cv",
 
 #creating results table
 results <- as.data.frame(test$right)
-
+names(results)[1] <- 'obs'
 
 #Running random forest
 require(randomForest)
@@ -75,17 +75,7 @@ rf_tune <- train(right ~ . ,
                  tuneGrid = tuningGrid,
                  trControl = control)
 rf_tune
-results$rf <- predict.train(rf_tune, newdata=test)
-
-
-#Linear Discriminant Analysis
-require(lda)
-lda_tune <- train(right ~.,
-                  method = 'lda',
-                  data = train,
-                  trControl = control)
-lda_tune
-results$lda<-predict(lda_tune, newdata = test)
+results$rf <- predict.train(rf_tune, newdata=test, type = 'prob')
 
 #Good ol' logistic regression
 logit_tune <- train(right ~.,
@@ -93,7 +83,7 @@ logit_tune <- train(right ~.,
                     data = train,
                     trControl = control)
 logit_tune
-results$logit <- predict(logit_tune, newdata = test)
+results$logit <- predict(logit_tune, newdata = test, type = 'prob')
 
 #Classification and Regression Tree, because why not.
 require(rpart)
@@ -104,23 +94,23 @@ cart_tune = train(right ~ . ,
                   tuneLength = 25 ,
                   trControl = control)
 cart_tune
-results$cart <- predict(cart_tune, newdata = test)
+results$cart <- predict(cart_tune, newdata = test, type = 'prob')
 
-#Boosting because I heard it's really good machine learning algorithm
-require(gbm)
-tuningGrid <- expand.grid(.n.trees = seq(200,1000,by = 200), 
-                          .interaction.depth = seq(1,7, by = 3 ),
-                          .shrinkage = seq(.001, .01, by = .001),
-                          .n.minobsinnode = seq(20,60, by = 20))
-
-gbm_tune = train(right ~ . , 
-                 data = train ,
-                 method = "gbm" ,
-                 metric = "ROC" ,
-                 tuneGrid = tuningGrid,
-                 trControl = control)
-gbm_tune
-results$gbm <- predict(gbm_tune, newdata = test)
+#Boosting because I heard it's really good machine learning algorithm (commented because it takes too long to iterate)
+# require(gbm)
+# tuningGrid <- expand.grid(.n.trees = seq(200,1000,by = 200), 
+#                           .interaction.depth = seq(1,7, by = 3 ),
+#                           .shrinkage = seq(.001, .01, by = .001),
+#                           .n.minobsinnode = seq(20,60, by = 20))
+# 
+# gbm_tune = train(right ~ . , 
+#                  data = train ,
+#                  method = "gbm" ,
+#                  metric = "ROC" ,
+#                  tuneGrid = tuningGrid,
+#                  trControl = control)
+# gbm_tune
+# results$gbm <- predict(gbm_tune, newdata = test)
 
 #Alot of talk has been on the accuracy of neural network algorithm, having a go at it here.
 require(nnet)
@@ -132,63 +122,24 @@ nnet_tune <- train(right ~ .,
                    tuneGrid = tuningGrid,
                    trControl = control)
 nnet_tune
-results$nnet <- predict(nnet_tune, newdata = test)
+results$nnet <- predict(nnet_tune, newdata = test, type = 'prob')
 
-#Approaching the problem like a computer scientist, with SVM
-require(kernlab)
-tuningGrid<-expand.grid(.sigma = c(.5,1), .C = c(1,2,3))
-svm_tune <- train(right ~ .,
-                  data = train,
-                  method = "svmRadial",
-                  metric = "ROC",
-                  tuneGrid = tuningGrid,
-                  trControl = control)
-svm_tune
-results$svm <- predict(svm_tune , newdata = test)
 
-#We can't go without doing some bayes, Naive Bayes
-require(e1071)
-tuningGrid = expand.grid(.usekernel = c(TRUE, FALSE), .fL = c(1,2))
-nb_tune <- train(right ~ .,
-                 data = train,
-                 method = "nb",
-                 metric = "ROC",
-                 tuneGrid = tuningGrid,
-                 trControl = control)
-nb_tune
-results$nb <- predict(nb_tune, newdata = test)
+final <- as.data.frame(results$obs)
+for (i in 2:ncol(results)){
+  sub <- as.data.frame(results[,i][2])
+  final <- cbind(final,sub)
+}
+final <- as.data.frame(final)
+names(final) <- names(results)
+final$obs <- ifelse(final$obs == 'Yes', 1, 0)
 
-#Looking at the results thus far and creating a confusion matrix for model selection
-names(results)[1]<-"obs"
+#model evaluation
+require(scoring)
 
-#confusion matrix for LDA
-confusionMatrix(lda_tune , norm = 'average')
-confusionMatrix(results$lda , results$obs)
+mean(brierscore(obs ~ rf, data = final))
+mean(brierscore(obs ~ logit, data = final))
+mean(brierscore(obs ~ cart, data = final))
+mean(brierscore(obs ~ nnet, data = final))
 
-# Logistic Regression
-confusionMatrix(logit_tune , norm = 'average')
-confusionMatrix(results$logit , results$obs)
 
-# CART
-confusionMatrix(cart_tune , norm = 'average')
-confusionMatrix(results$cart , results$obs)
-
-# Random Forest
-confusionMatrix(rf_tune , norm = 'average')
-confusionMatrix(results$rf , results$obs)
-
-# Boosting
-confusionMatrix(gbm_tune , norm = 'average')
-confusionMatrix(results$gbm , results$obs)
-
-# SVM Radial
-confusionMatrix(svm_tune , norm = 'average')
-confusionMatrix(results$svm , results$obs)
-
-# Naive Bayes
-confusionMatrix(nb_tune , norm = 'average')
-confusionMatrix(results$nb , results$obs)
-
-# Neural Net
-confusionMatrix(nnet_tune, norm = 'average')
-confusionMatrix(results$nnet, results$obs)
