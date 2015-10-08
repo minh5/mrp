@@ -144,14 +144,12 @@ mean(brierscore(obs ~ cart, data = eval))
 mean(brierscore(obs ~ nnet, data = eval)) #winner
 
 # applying models
-data$prediction <- predict(nnet_tune, newdata = data, type = 'prob')
-data <- cbind(data, tmpData$demState)
-names(data)[ncol(data)] <- 'demState'
+data$prediction <- predict(nnet_tune, newdata = data, type = 'prob')[2]
 
 #grabbing cohorts from census file for post stratification
 post <- cbind(data, dataPrep)
 post$race <- factor(post$demRace)
-levels(post$race) <- c('White', 'Black', 'Native', 'Native', 'Native', 'Asian', 'Asian', 'Other', 'Other')
+levels(post$race) <- c('Native', 'Asian', 'Black', 'White', 'Other')
 post$gender <- ifelse(post$demGender == 1, "Male", "Female")
 post$hisp <-ifelse(post$demHisp == 1, "Hisp", "Not Hisp")                      
 post$state <- factor(post$demState)
@@ -161,6 +159,19 @@ levels(post$state) <- c(1,2,4,5,6,8,9,10,11,12,13,15,
                         36,37,38,39,40,41,42,44,45,46,
                         47,48,49,50,51,53,54,55,56,72)
 post$cohort <- paste(post$state, post$gender, post$ageGroups, post$eduGroups, post$race, post$hisp, sep=',')
-head(post$cohort)
 census <- read.csv('census/post-strat.csv')                      
+
+#post-stratification
+post <- merge(post, census, by = 'cohort', all.x = T)
+table(is.na(post$weights)) #noticed some weights are missing because the cohorts are not represented
+
+# created a table of average weights to impute into missing values
+means <- as.data.frame(tapply(post$weights, post$state, function(x) mean(x, na.rm = T)))
+names(means) <- "means"
+match <- merge(post, means, by.x = 'state', by.y = 0)
+post$weights[which(is.na(post$weights))] <- match[which(is.na(match$weights)), 'means']
+
+#post-stratification calcuations
+post$finalScore <- post$prediction[[1]] * post$weights
+tapply(post$finalScore, post$state, function(x) sum(x)*100)
 
