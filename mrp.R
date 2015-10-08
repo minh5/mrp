@@ -11,7 +11,7 @@ eduGroups <- as.data.frame(cut(tmpData$demEduFull, breaks = c(0,3,7,9), labels =
 names(eduGroups) <- "eduGroups"
 
 #cleaning up dataset
-dataPrep <- tmpData[,c("nr1","demGender","demRace","demHisp","xpid3")]
+dataPrep <- tmpData[,c("nr1","demGender","demRace","demHisp")]
 dataPrep <- cbind(dataPrep, ageGroups, eduGroups) 
 
 #explicitly typecast numeric into factor variables
@@ -24,7 +24,7 @@ for (i in 2:5){
 dummies <- dummyVars(nr1 ~ ., data= dataPrep)
 data <- as.data.frame(predict(dummies, newdata = dataPrep))
 data <- cbind(data, tmpData$demState)
-names(data) <- c("male","female","native","asian","black","white","other.race","hisp","notHisp","dem","gop","other.par",
+names(data) <- c("male","female","native","asian","black","white","other.race","hisp","notHisp",
                   "under18","age18.35","age35.55","age55plus", "hs","college","postgraduate","demState")
 
 #splitting regions according to census - since dummy all 50 states would make the data too wide for prediction
@@ -49,6 +49,7 @@ data$right <- as.factor(data$right)
 levels(data$right) <- c("No", "Yes")
 
 #create training and test set
+set.seed(938479382)
 split <- createDataPartition(data$right, p=.8)[[1]]
 train<-data[split,]
 test<-data[-split,]
