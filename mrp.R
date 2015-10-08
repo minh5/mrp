@@ -148,5 +148,19 @@ data$prediction <- predict(nnet_tune, newdata = data, type = 'prob')
 data <- cbind(data, tmpData$demState)
 names(data)[ncol(data)] <- 'demState'
 
-#getting statewide estimates
-tapply(data$prediction[[2]], data$demState, mean)
+#grabbing cohorts from census file for post stratification
+post <- cbind(data, dataPrep)
+post$race <- factor(post$demRace)
+levels(post$race) <- c('White', 'Black', 'Native', 'Native', 'Native', 'Asian', 'Asian', 'Other', 'Other')
+post$gender <- ifelse(post$demGender == 1, "Male", "Female")
+post$hisp <-ifelse(post$demHisp == 1, "Hisp", "Not Hisp")                      
+post$state <- factor(post$demState)
+levels(post$state) <- c(1,2,4,5,6,8,9,10,11,12,13,15,
+                        16,17,18,19,20,21,22,23,24,25,
+                        26,27,28,29,30,31,32,33,24,25,
+                        36,37,38,39,40,41,42,44,45,46,
+                        47,48,49,50,51,53,54,55,56,72)
+post$cohort <- paste(post$state, post$gender, post$ageGroups, post$eduGroups, post$race, post$hisp, sep=',')
+head(post$cohort)
+census <- read.csv('census/post-strat.csv')                      
+
