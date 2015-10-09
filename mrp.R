@@ -4,6 +4,7 @@ library(caret)
 
 load("data.RData")
 
+#####pre-proces#
 #break up ages and education
 ageGroups <- as.data.frame(cut(tmpData$demAgeFull, breaks = c(0,18,35,55,Inf), labels = c("under 18","18-35","35-55", "55+")))
 names(ageGroups) <- "ageGroups"
@@ -40,16 +41,18 @@ data$moutain <-  ifelse(data$demState %in% c(3, 6, 13, 32, 27,45, 51), 1, 0)
 data$pacific <- ifelse(data$demState %in% c(2,5, 12, 38, 48), 1, 0)
 data <- data[,-grep("^demState",names(data))]
 
+#####first model - country right/wrong#####
 #creating columns where we are trying to measure predict
-right <- as.data.frame(ifelse(tmpData$nr1 == 1, 1, 0))
-names(right) <- "right"
-data <- cbind(right, data)
-data$right <- as.factor(data$right)
-levels(data$right) <- c("No", "Yes")
+dv <- as.data.frame(ifelse(tmpData$nr1 == 1, 1, 0))
+names(dv) <- "dv"
+
+data <- cbind(dv, data)
+data$dv <- as.factor(data$dv)
+levels(data$dv) <- c("No", "Yes")
 
 #create training and test set
 set.seed(938479382)
-split <- createDataPartition(data$right, p=.8)[[1]]
+split <- createDataPartition(data$dv, p=.8)[[1]]
 train<-data[split,]
 test<-data[-split,]
 
@@ -62,51 +65,51 @@ control <- trainControl(method = "cv",
                         summaryFunction = twoClassSummary)
 
 #creating results table
-results <- as.data.frame(test$right)
+results <- as.data.frame(test$dv)
 names(results)[1] <- 'obs'
 
 #Running random forest
 require(randomForest)
 tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
-rf_tune <- train(right ~ . , 
+rf_tune1 <- train(dv ~ . , 
                  data=train, 
                  method = "rf" ,
                  metric = "ROC",
                  tuneGrid = tuningGrid,
                  trControl = control)
-rf_tune
-results$rf <- predict.train(rf_tune, newdata=test, type = 'prob')
+rf_tune1
+results$rf <- predict.train(rf_tune1, newdata=test, type = 'prob')
 
 #Good ol' logistic regression
-logit_tune <- train(right ~.,
-                    method = 'glm',
+logit_tune1 <- train(dv ~.,
+                   method = 'glm',
                     data = train,
                     trControl = control)
-logit_tune
-results$logit <- predict(logit_tune, newdata = test, type = 'prob')
+logit_tune1
+results$logit <- predict(logit_tune1, newdata = test, type = 'prob')
 
 #Classification and Regression Tree, because why not.
 require(rpart)
-cart_tune = train(right ~ . , 
+cart_tune1 = train(dv ~ . , 
                   data = train ,
                   method = "rpart" ,
                   metric = "ROC" ,
                   tuneLength = 25 ,
                   trControl = control)
-cart_tune
-results$cart <- predict(cart_tune, newdata = test, type = 'prob')
+cart_tune1
+results$cart <- predict(cart_tune1, newdata = test, type = 'prob')
 
 #Alot of talk has been on the accuracy of neural network algorithm, having a go at it here.
 require(nnet)
 tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
-nnet_tune <- train(right ~ .,
+nnet_tune1 <- train(dv ~ .,
                    data = train,
                    method = "nnet",
                    metric = "ROC",
                    tuneGrid = tuningGrid,
                    trControl = control)
-nnet_tune
-results$nnet <- predict(nnet_tune, newdata = test, type = 'prob')
+nnet_tune1
+results$nnet <- predict(nnet_tune1, newdata = test, type = 'prob')
 
 
 eval <- as.data.frame(results$obs)
@@ -127,8 +130,172 @@ mean(brierscore(obs ~ cart, data = eval))
 mean(brierscore(obs ~ nnet, data = eval)) #winner
 
 # applying models
-data$prediction <- predict(nnet_tune, newdata = data, type = 'prob')[2]
+predictdf <- data
+predictdf$predictionRight <- predict(nnet_tune1, newdata = predictdf, type = 'prob')[2]
 
+######second - obama job approval#####
+#creating columns where we are trying to measure predict
+data$dv <- ifelse(tmpData$nr2 <= 2, 1, 0)
+data$dv <- as.factor(data$dv)
+levels(data$dv) <- c("No", "Yes")
+
+#create training and test set
+set.seed(938479382)
+split <- createDataPartition(data$dv, p=.8)[[1]]
+train<-data[split,]
+test<-data[-split,]
+
+
+#creating results table
+results <- as.data.frame(test$dv)
+names(results)[1] <- 'obs'
+
+# random forest
+require(randomForest)
+tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
+rf_tune2 <- train(dv ~ . , 
+                 data=train, 
+                 method = "rf" ,
+                 metric = "ROC",
+                 tuneGrid = tuningGrid,
+                 trControl = control)
+rf_tune2
+results$rf <- predict.train(rf_tune2, newdata=test, type = 'prob')
+
+#logistic regression
+logit_tune2 <- train(dv ~.,
+                    method = 'glm',
+                    data = train,
+                    trControl = control)
+logit_tune2
+results$logit <- predict(logit_tune2, newdata = test, type = 'prob')
+
+#Classification and Regression Tree
+require(rpart)
+cart_tune2 = train(dv ~ . , 
+                  data = train ,
+                  method = "rpart" ,
+                  metric = "ROC" ,
+                  tuneLength = 25 ,
+                  trControl = control)
+cart_tune2
+results$cart <- predict(cart_tune2, newdata = test, type = 'prob')
+
+#neural network
+require(nnet)
+tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
+nnet_tune2 <- train(dv ~ .,
+                   data = train,
+                   method = "nnet",
+                   metric = "ROC",
+                   tuneGrid = tuningGrid,
+                   trControl = control)
+nnet_tune2
+results$nnet <- predict(nnet_tune2, newdata = test, type = 'prob')
+
+#evaulation
+eval <- as.data.frame(results$obs)
+for (i in 2:ncol(results)){
+  sub <- as.data.frame(results[,i][2])
+  eval <- cbind(eval,sub)
+}
+eval <- as.data.frame(eval)
+names(eval) <- names(results)
+eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
+
+#model evaluation
+require(scoring)
+
+mean(brierscore(obs ~ rf, data = eval))
+mean(brierscore(obs ~ logit, data = eval))
+mean(brierscore(obs ~ cart, data = eval))
+mean(brierscore(obs ~ nnet, data = eval)) #winner
+
+# applying models
+predictdf$predictionApprove <- predict(nnet_tune2, newdata = predictdf, type = 'prob')[2]
+
+
+#####third model - economy as top priority#####
+#creating columns where we are trying to measure predict
+data$dv <- ifelse(tmpData$nr3 == 1, 1, 0)
+data$dv <- as.factor(data$dv)
+levels(data$dv) <- c("No", "Yes")
+
+#create training and test set
+set.seed(938479382)
+split <- createDataPartition(data$dv, p=.8)[[1]]
+train<-data[split,]
+test<-data[-split,]
+
+#creating results table
+results <- as.data.frame(test$dv)
+names(results)[1] <- 'obs'
+
+# random forest
+require(randomForest)
+tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
+rf_tune3 <- train(dv ~ . , 
+                 data=train, 
+                 method = "rf" ,
+                 metric = "ROC",
+                 tuneGrid = tuningGrid,
+                 trControl = control)
+rf_tune3
+results$rf <- predict.train(rf_tune3, newdata=test, type = 'prob')
+
+#logistic regression
+logit_tune3 <- train(dv ~.,
+                    method = 'glm',
+                    data = train,
+                    trControl = control)
+logit_tune3
+results$logit <- predict(logit_tune3, newdata = test, type = 'prob')
+
+#Classification and Regression Tree
+require(rpart)
+cart_tune3 = train(dv ~ . , 
+                  data = train ,
+                  method = "rpart" ,
+                  metric = "ROC" ,
+                  tuneLength = 25 ,
+                  trControl = control)
+cart_tune3
+results$cart <- predict(cart_tune3, newdata = test, type = 'prob')
+
+#neural network
+require(nnet)
+tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
+nnet_tune3 <- train(dv ~ .,
+                   data = train,
+                   method = "nnet",
+                   metric = "ROC",
+                   tuneGrid = tuningGrid,
+                   trControl = control)
+nnet_tune3
+results$nnet <- predict(nnet_tune3, newdata = test, type = 'prob')
+
+#evaulation
+eval <- as.data.frame(results$obs)
+for (i in 2:ncol(results)){
+  sub <- as.data.frame(results[,i][2])
+  eval <- cbind(eval,sub)
+}
+eval <- as.data.frame(eval)
+names(eval) <- names(results)
+eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
+
+#model evaluation
+require(scoring)
+
+mean(brierscore(obs ~ rf, data = eval)) 
+mean(brierscore(obs ~ logit, data = eval)) 
+mean(brierscore(obs ~ cart, data = eval))
+mean(brierscore(obs ~ nnet, data = eval)) #winner 
+
+# applying models
+predictdf$predictionEconomy <- predict(nnet_tune3, newdata = predictdf, type = 'prob')[2]
+
+#####post-stratification
 #grabbing cohorts from census file for post stratification
 post <- cbind(data, dataPrep)
 post$race <- factor(post$demRace)
@@ -158,14 +325,15 @@ names(means) <- "means"
 match <- merge(post, means, by.x = 'state', by.y = 0)
 post$weights[which(is.na(post$weights))] <- match[which(is.na(match$weights)), 'means']
 
+final <- cbind(predictdf[,c("predictionRight","predictionApprove","predictionEconomy")], post[,c("state","weights")])
 #post-stratification calcuations
-post$finalScore <- post$prediction[[1]] * post$weights
-tapply(post$finalScore, post$state, function(x) sum(x)*100)
+final$rightScore <- final$predictionRight[[1]] * final$weights
+final$approveScore <- final$predictionApprove[[1]]*final$weights
+final$econScore <- final$predictionEconomy[[1]]*final$weights
 
 #notice that Montana is missing
 #to estimate the score, I'm going to grab the average sample population makeup of ID, WY, ND, and SD because they neighbor Montana. I have no reason to think that their population
 #make is significantly different from Montana's
-
 #grabbing from data set with the original tmpData frame as the index
 mountain <- data[tmpData$demState %in% c(13, 35, 42, 51), ]
 
@@ -181,7 +349,21 @@ names(montana) <- names(train)[2:26]
 row.names(montana) <- "montana"
 
 #applying prediction models
-montana$predictions <- predict(nnet_tune, newdata = montana, type = 'prob')[2]
-montana$finalScore <- 
-append(tapply(post$finalScore, post$state, sum), montana$predictions)
+montana$predictionRight <- predict(nnet_tune1, newdata = montana, type = 'prob')[2]
+montana$predictionApprove <- predict(nnet_tune2, newdata = montana, type = 'prob')[2]
+montana$predictionEconomy <- predict(nnet_tune3, newdata = montana, type = 'prob')[2]
+census$state <- substring(census$cohort, 1,2)
+censusMT <- census[census$state == 30,]
 
+montana$state <- 30
+montana$weights <- mean(census$weights[census$state == 30])
+montana$rightScore <- as.numeric(montana$predictionRight * montana$weights)
+montana$approveScore <- as.numeric(montana$predictionRight * montana$weights)
+montana$econScore <- as.numeric(montana$predictionRight * montana$weights)
+montana <- montana[,names(final)]
+final <- rbind(final, montana)
+
+#tabulate state scores
+tapply(as.numeric(final$rightScore), final$state, function(x) sum(x)*100)
+tapply(as.numeric(final$approveScore), final$state, function(x) sum(x)*100)
+tapply(as.numeric(final$econScore), final$state, function(x) sum(x)*100)
