@@ -21,4 +21,4 @@ Just some notes that I want you to be aware of when you clone this repo.
 * For some reason, Chrome doesn't execute the ``index.html`` file correctly, so you can either try:
   + opening the file in Mozilla
   + running a local server (I find running ```python -m SimpleHTTPServer``` to be the simplest)
-*If there is anything else I missed or if there is something you want to discuss much more in-depth, please feel free to reach out to [me](minh.v.mai@gmail.com).
+* If there is anything else I missed or if there is something you want to discuss much more in-depth, please feel free to reach out to [me](minh.v.mai@gmail.com).
