@@ -1,0 +1,459 @@
+---
+title: "Data Science Challenge"
+author: "Minh Mai"
+date: "October 12, 2015"
+output: html_document
+---
+
+## Executive Summary
+The purpose of this challenge is for me to get statewide estimates based on poling data collected from Morning Consult. The public opinion variables of interest that I will be measuring will be the percentage of people who believe the country is heading in the right direction, President Obama's approval, and the economy is their most important issue.
+
+* Below is a summary of steps:
+    + Conducted a literature review of MRP
+    + Trained and evaluated model for public opinion measurement
+    + Conduct post-stratification to calculate statewide responses
+    + Visualize the findings
+
+#### Literature Review
+To begin, I did not know what multi-level regression post-stratification (also known as MRP) is at the beginning of this challenge. To make up for this, I downloaded the [paper](http://www.princeton.edu/~jkastell/MRP_primer/mrp_primer.pdf) by Kastellec, Lax, and Phillips (2014). I have also downloaded another [paper](http://www.stat.columbia.edu/~gelman/research/published/parkgelmanbafumi.pdf) by Park, Gelman, and Bafumi(2004) on a Bayesian approach to MRP. The second paper was not as important since I do not plan on fitting distributions nor does my census file for post-stratification dataset justify using such a technique.
+
+#### Methods Summary 
+After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects. 
+
+  * First, rather than fitting a logit model and using the betas to derive the statewide estimates, I took a more machine learning approach. 
+  * Second, rather than using an aggegrate Census file for post-stratification from sources like DataFerret, I used individual level Census data for post-stratification.
+
+The final output with statewide estimates called ```predictions.csv```. It will be accompanied by an interactive map illustrating in the ```/maps``` directory.
+
+
+## Procedure
+
+As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but ```caret``` makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest,  that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were random forest, classification and regression trees, and neural networks. I also included logit as a baseline for comparision. 
+
+### Preprocessing and cleaning
+Loading up the libraries and data needed
+```{r}
+setwd("~/mrp/")
+library(caret)
+
+load("data.RData")
+```
+
+I broke the age and education into discrete groups and dummied out the factors using the ```dummyVars()``` function from caret.
+
+```{r}
+#breaking up age and education into categories
+ageGroups <- as.data.frame(cut(tmpData$demAgeFull, breaks = c(0,18,35,55,Inf), labels = c("under 18","18-35","35-55", "55+")))
+names(ageGroups) <- "ageGroups"
+eduGroups <- as.data.frame(cut(tmpData$demEduFull, breaks = c(0,3,7,9), labels = c("Up to HS", "Up to College", "PostGraduate")))
+names(eduGroups) <- "eduGroups"
+
+#cleaning up dataset
+dataPrep <- tmpData[,c("nr1","demGender","demRace","demHisp")]
+dataPrep <- cbind(dataPrep, ageGroups, eduGroups) 
+
+#explicitly typecast numeric into factor variables
+names(dataPrep)
+for (i in 2:5){
+  dataPrep[,i] <- as.factor(dataPrep[,i])
+}
+
+#dummying variables
+dummies <- dummyVars(nr1 ~ ., data= dataPrep)
+data <- as.data.frame(predict(dummies, newdata = dataPrep))
+data <- cbind(data, tmpData$demState)
+names(data) <- c("male","female","native","asian","black","white","other.race","hisp","notHisp",
+                  "under18","age18.35","age35.55","age55plus", "hs","college","postgraduate","demState")
+```
+
+Due to my experience, I know the geographies play a role, therefore, I decided to break the states into geographic regions as dictated by the [Census](http://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf). This could be used to look at the regional effects if needed.
+```{r}
+data$newengland <- ifelse(data$demState %in% c(7, 20, 22, 30, 40, 46), 1,0)
+data$midatlantic <- ifelse(data$demState %in% c(31, 33, 39),1,0)
+data$eastcentral <- ifelse(data$demState %in% c(16, 14, 23, 36, 50),1,0)
+data$westcentral <- ifelse(data$demState %in% c(16, 17, 24, 26, 28, 35, 42),1,0)
+data$southatlantic <- ifelse(data$demState %in% c(8, 9, 10, 11, 21, 34, 41, 47, 49),1,0)
+data$southeast <- ifelse(data$demState %in% c(1,18, 25, 43), 1, 0)
+data$southwest <- ifelse(data$demState %in% c(2, 19, 37, 44), 1, 0)
+data$moutain <-  ifelse(data$demState %in% c(3, 6, 13, 32, 27,45, 51), 1, 0)
+data$pacific <- ifelse(data$demState %in% c(2,5, 12, 38, 48), 1, 0)
+data <- data[,-grep("^demState",names(data))]
+```
+
+
+### Model Building
+
+** Right/Wrong Direction Model**
+
+Running the first model - perception whether or not the country is in the right direction using random forest, CART, logit, and neural network algorithm. First I prepped the data for model training
+
+```{r}
+#creating columns where we are trying to measure predict
+dv <- as.data.frame(ifelse(tmpData$nr1 == 1, 1, 0))
+names(dv) <- "dv"
+
+data <- cbind(dv, data)
+data$dv <- as.factor(data$dv)
+levels(data$dv) <- c("No", "Yes")
+
+#create training and test set
+set.seed(938479382)
+split <- createDataPartition(data$dv, p=.8)[[1]]
+train<-data[split,]
+test<-data[-split,]
+
+
+#creating controller for training
+control <- trainControl(method = "cv", 
+                        number = 10, 
+                        savePredictions = TRUE, 
+                        classProbs = TRUE, 
+                        summaryFunction = twoClassSummary)
+
+#creating results table
+results <- as.data.frame(test$dv)
+names(results)[1] <- 'obs'
+```
+
+
+**Logistic regression** as a baseline
+```{r warning = FALSE, error = FALSE, message = FALSE}
+logit_tune1 <- train(dv ~.,
+                   method = 'glm',
+                    data = train,
+                    trControl = control)
+logit_tune1
+#appending to the results file for model evaluation and selection
+results$logit <- predict(logit_tune1, newdata = test, type = 'prob')
+```
+
+**Random forest**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+require(randomForest)
+tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
+rf_tune1 <- train(dv ~ . , 
+                 data=train, 
+                 method = "rf" ,
+                 metric = "ROC",
+                 tuneGrid = tuningGrid,
+                 trControl = control)
+rf_tune1
+results$rf <- predict.train(rf_tune1, newdata=test, type = 'prob') 
+```
+
+
+**Classification and Regression Tree**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+require(rpart)
+cart_tune1 = train(dv ~ . , 
+                  data = train ,
+                  method = "rpart" ,
+                  metric = "ROC" ,
+                  tuneLength = 25 ,
+                  trControl = control)
+cart_tune1
+results$cart <- predict(cart_tune1, newdata = test, type = 'prob')
+```
+
+**Neural network**
+```{r warning = FALSE, error = FALSE, message = FALSE, results="hide"}
+require(nnet)
+tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
+nnet_tune1 <- train(dv ~ .,
+                   data = train,
+                   method = "nnet",
+                   metric = "ROC",
+                   tuneGrid = tuningGrid,
+                   trControl = control)
+```
+```{r}
+nnet_tune1
+results$nnet <- predict(nnet_tune1, newdata = test, type = 'prob')
+```
+
+#### Model Evaluation and Selection
+
+Creating the results into an evaluation table and evaluated the models using the [Brier Score](https://en.wikipedia.org/wiki/Brier_score), whichever model has the lower score is the one we selected.
+
+```{r}
+eval <- as.data.frame(results$obs)
+for (i in 2:ncol(results)){
+  sub <- as.data.frame(results[,i][2])
+  eval <- cbind(eval,sub)
+}
+eval <- as.data.frame(eval)
+names(eval) <- names(results)
+eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
+
+#model evaluation
+require(scoring)
+
+mean(brierscore(obs ~ rf, data = eval))
+mean(brierscore(obs ~ logit, data = eval))
+mean(brierscore(obs ~ cart, data = eval))
+mean(brierscore(obs ~ nnet, data = eval)) #winner
+```
+
+
+**Measuring President Obama's Approval**
+
+The system and metrics are exactly the same as the first model
+
+```{r}
+#creating columns where we are trying to measure predict
+data$dv <- ifelse(tmpData$nr2 <= 2, 1, 0)
+data$dv <- as.factor(data$dv)
+levels(data$dv) <- c("No", "Yes")
+
+#create training and test set
+set.seed(938479382)
+split <- createDataPartition(data$dv, p=.8)[[1]]
+train<-data[split,]
+test<-data[-split,]
+
+
+#creating results table
+results <- as.data.frame(test$dv)
+names(results)[1] <- 'obs'
+```
+
+**Logistic regression**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+logit_tune2 <- train(dv ~.,
+                    method = 'glm',
+                    data = train,
+                    trControl = control)
+logit_tune2
+results$logit <- predict(logit_tune2, newdata = test, type = 'prob')
+``` 
+
+**Random forest**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
+rf_tune2 <- train(dv ~ . , 
+                 data=train, 
+                 method = "rf" ,
+                 metric = "ROC",
+                 tuneGrid = tuningGrid,
+                 trControl = control)
+rf_tune2
+results$rf <- predict.train(rf_tune2, newdata=test, type = 'prob')
+```
+
+**Classification and Regression Tree**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+cart_tune2 = train(dv ~ . , 
+                  data = train ,
+                  method = "rpart" ,
+                  metric = "ROC" ,
+                  tuneLength = 25 ,
+                  trControl = control)
+cart_tune2
+results$cart <- predict(cart_tune2, newdata = test, type = 'prob')
+```
+
+**Neural network**
+```{r warning = FALSE, error = FALSE, message = FALSE, results = "hide"}
+tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
+nnet_tune2 <- train(dv ~ .,
+                   data = train,
+                   method = "nnet",
+                   metric = "ROC",
+                   tuneGrid = tuningGrid,
+                   trControl = control)
+```
+```{r}
+nnet_tune2
+results$nnet <- predict(nnet_tune2, newdata = test, type = 'prob')
+```
+
+#### Model Evaluation and Selection
+
+Same methods as the previous model
+
+```{r}
+eval <- as.data.frame(results$obs)
+for (i in 2:ncol(results)){
+  sub <- as.data.frame(results[,i][2])
+  eval <- cbind(eval,sub)
+}
+eval <- as.data.frame(eval)
+names(eval) <- names(results)
+eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
+
+#model evaluation
+require(scoring)
+
+mean(brierscore(obs ~ rf, data = eval))
+mean(brierscore(obs ~ logit, data = eval))
+mean(brierscore(obs ~ cart, data = eval))
+mean(brierscore(obs ~ nnet, data = eval)) #winner
+```
+
+** Economy as the Most Important Issue**
+
+Same preparation methods as the first two models
+```{r}
+data$dv <- ifelse(tmpData$nr3 == 1, 1, 0)
+data$dv <- as.factor(data$dv)
+levels(data$dv) <- c("No", "Yes")
+
+#create training and test set
+set.seed(938479382)
+split <- createDataPartition(data$dv, p=.8)[[1]]
+train<-data[split,]
+test<-data[-split,]
+
+#creating results table
+results <- as.data.frame(test$dv)
+names(results)[1] <- 'obs'
+```
+
+**Logistic regression**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+logit_tune3 <- train(dv ~.,
+                    method = 'glm',
+                    data = train,
+                    trControl = control)
+logit_tune3
+results$logit <- predict(logit_tune3, newdata = test, type = 'prob')
+```
+
+**Random forest**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
+rf_tune3 <- train(dv ~ . , 
+                 data=train, 
+                 method = "rf" ,
+                 metric = "ROC",
+                 tuneGrid = tuningGrid,
+                 trControl = control)
+rf_tune3
+results$rf <- predict.train(rf_tune3, newdata=test, type = 'prob')
+```
+
+**Classification and Regression Tree**
+```{r warning = FALSE, error = FALSE, message = FALSE}
+cart_tune3 = train(dv ~ . , 
+                  data = train ,
+                  method = "rpart" ,
+                  metric = "ROC" ,
+                  tuneLength = 25 ,
+                  trControl = control)
+cart_tune3
+results$cart <- predict(cart_tune3, newdata = test, type = 'prob')
+```
+
+**Neural Networks**
+```{r warning = FALSE, error = FALSE, message = FALSE, results = "hide"}
+tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
+nnet_tune3 <- train(dv ~ .,
+                   data = train,
+                   method = "nnet",
+                   metric = "ROC",
+                   tuneGrid = tuningGrid,
+                   trControl = control)
+```
+```{r}
+nnet_tune3
+results$nnet <- predict(nnet_tune3, newdata = test, type = 'prob')
+```
+
+#### Model Evaluation and Selection
+
+I used the same model evaluation methods as the last two models
+
+```{r}
+eval <- as.data.frame(results$obs)
+for (i in 2:ncol(results)){
+  sub <- as.data.frame(results[,i][2])
+  eval <- cbind(eval,sub)
+}
+eval <- as.data.frame(eval)
+names(eval) <- names(results)
+eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
+
+#model evaluation
+require(scoring)
+
+mean(brierscore(obs ~ rf, data = eval)) 
+mean(brierscore(obs ~ logit, data = eval)) 
+mean(brierscore(obs ~ cart, data = eval))
+mean(brierscore(obs ~ nnet, data = eval)) #winner 
+```
+
+## Post-stratification
+
+As I have mentioned before, I have census level data from [Kaggle](https://www.kaggle.com/c/2013-american-community-survey/data). The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.  
+we
+I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.
+
+```{r warnings = FALSE, message = FALSE}
+census <- rbind(data.table::fread('census/ss13pusa.csv', select = c('ST','SEX','AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE),
+                data.table::fread('census/ss13pusb.csv', select = c('ST','SEX', 'AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE))
+```
+
+
+I refactored variables to match the ones in the training set so the models can be used to predict for the entire Census file
+```{r}
+census$gender <- ifelse(census$SEX == 1, "Male", "Female")
+census$age <- cut(census$AGEP, breaks = c(-Inf,18,35,55,Inf), labels = c("under 18","18-35","35-55", "55+"))
+census$SCHL[which(is.na(census$SCHL))] <- 0
+census$education <- cut(census$SCHL, breaks = c(-Inf,16, 21, Inf), labels = c('Up to HS', 'Up to College', 'PostGraduate'))
+census$race <- factor(census$RAC1P)
+levels(census$race) <- c('White', 'Black', 'Native', 'Native', 'Native', 'Asian', 'Asian', 'Other', 'Other')
+census$hisp <- ifelse(census$HISP == 1, "Hisp", "Not Hisp")
+
+#dummying census voter file
+dummiesCensus <- dummyVars(ST ~ . , data= census[,c('ST','gender','age','education','race','hisp')])
+census2 <- as.data.frame(predict(dummiesCensus, newdata = census))
+names(census2) <- c("female","male","under18","age18.35","age35.55","age55plus","hs","college",
+                    "postgraduate","white","black","native","asian","other.race","hisp","notHisp")
+```
+
+Since the demState and the Census State codes don't match, I'm merging them so I can break them up by states without having to go through the entire Census state codes
+```{r}
+census2 <- cbind(census2, census$ST)
+names(census2)[ncol(census2)] <- 'ST'
+census2$demState <- factor(census2$ST)
+table(census2$demState)
+levels(census2$demState) <- seq(1,51)
+
+#dummying out regional again
+census2$newengland <- ifelse(census2$demState %in% c(7, 20, 22, 30, 40, 46), 1,0)
+census2$midatlantic <- ifelse(census2$demState %in% c(31, 33, 39),1,0)
+census2$eastcentral <- ifelse(census2$demState %in% c(16, 14, 23, 36, 50),1,0)
+census2$westcentral <- ifelse(census2$demState %in% c(16, 17, 24, 26, 28, 35, 42),1,0)
+census2$southatlantic <- ifelse(census2$demState %in% c(8, 9, 10, 11, 21, 34, 41, 47, 49),1,0)
+census2$southeast <- ifelse(census2$demState %in% c(1,18, 25, 43), 1, 0)
+census2$southwest <- ifelse(census2$demState %in% c(2, 19, 37, 44), 1, 0)
+census2$moutain <-  ifelse(census2$demState %in% c(3, 6, 13, 32, 27,45, 51), 1, 0)
+census2$pacific <- ifelse(census2$demState %in% c(2,5, 12, 38, 48), 1, 0)
+```
+
+
+Applying the models for each public opinion question
+```{r}
+census2$predictionRight <- predict(nnet_tune1, newdata = census2, type = 'prob')[2]
+census2$predictionApprove <- predict(nnet_tune2, newdata = census2, type = 'prob')[2]
+census2$predictionEcon <- predict(nnet_tune3, newdata = census2, type = 'prob')[2]
+
+#applying census weights to scores
+census2 <- cbind(census2, census$PWGTP)
+names(census2)[ncol(census2)] <- 'weights'
+
+#weight the scores
+census2$rightScore <- census2$predictionRight * census2$weights 
+census2$approveScore <- census2$predictionApprove * census2$weights 
+census2$econScore <- census2$predictionEcon * census2$weights 
+
+#tabulating scores by state
+rScore <- as.data.frame(tapply(as.numeric(unlist(census2$rightScore)),census2$ST,function(x) sum(x)/length(x)))
+aScore <- as.data.frame(tapply(as.numeric(unlist(census2$approveScore)),census2$ST,function(x) sum(x)/length(x)))
+eScore <- as.data.frame(tapply(as.numeric(unlist(census2$econScore)),census2$ST,function(x) sum(x)/length(x)))
+final <- cbind(as.data.frame(levels(as.factor(census2$ST))),rScore,aScore,eScore)
+names(final) <- c("ST","right","approve","econ")
+print(final, row.names = FALSE)
+```
+
+## Results

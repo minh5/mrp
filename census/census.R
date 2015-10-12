@@ -57,3 +57,4 @@ final <- cbind(as.data.frame(levels(as.factor(census2$ST))),rScore,aScore,eScore
 names(final) <- c("ST","right","approve","econ")
 
 write.csv(final, "predictions.csv",row.names=F)
+

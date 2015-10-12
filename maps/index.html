@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+   <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+   <script src="http://d3js.org/d3.v3.js"></script>
+   <script src="http://d3js.org/queue.v1.min.js"></script>
+   <script src="http://d3js.org/topojson.v1.min.js"></script>
+   <script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.9/mapbox.js'></script>
+   <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.9/mapbox.css' rel='stylesheet' />
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+
+   <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.8/mapbox.css' rel='stylesheet' />
+
+
+   <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      .info {
+        background: rgba(255,255,255,.85);
+        border: 1px solid black;
+        padding: 7px;
+      }
+
+      .key path {
+        display: none;
+      }
+
+      .menu-ui {
+        position:absolute;
+        top:10px;
+        right:10px;
+      }
+
+      path {
+        -webkit-transition:fill 200ms;
+                transition:fill 200ms;
+      }
+
+   </style>
+</head>
+
+<body>
+   <div id="map" style="width: 100%; height: 100%"></div>
+   <div id="variables" class="menu-ui"></div>
+   <script>
+      queue()
+          .defer(d3.json, 'ia-zip-final.json') //change map name
+          .await(makeMap)
+
+      function makeMap(error, data) {
+
+          L.mapbox.accessToken = 'pk.eyJ1IjoibWluaDUiLCJhIjoiaXlwYTAxOCJ9.Ny8tujUV7-0dbVHVu3RQ_w';
+          var map = L.mapbox.map('map', 'minh5.d0e19262')
+          	  .setView([41.9, -91.5], 7);
+              // first number is lat (less is south, more is north)
+              // second number is long (less is west, more is east )
+          L.tileLayer('mapbox.streets', {
+
+              maxZoom: 18,
+              minZoom: 1,
+
+          }).addTo(map);
+
+
+          // // ***NEW***
+          // // add selector for variables
+          //  var variables = [
+          //    'targetv',
+          //    'thh',
+          //    'tlandlines'
+          //  ];
+          //  // currently selected variable; initialised to first one, changed in
+          //  // the handler for the options menu
+          //  var selected = variables[0];
+          //  var ranges = {};
+          //
+          //  d3.select("#variables")
+          //   .append("select")
+          //   .on("change", function() {
+          //       // on change, adjust domain of colour scale and reset fill
+          //       // colour for all paths
+          //       selected = d3.select(this).property("value");
+          //       color.domain(ranges[selected]);
+          //       geojson.setStyle(
+          //         function style(feature) {
+          //           return {
+          //               fillColor: color(+feature.properties[selected])
+          //           };
+          //         }
+          //       );
+          //   })
+          //   .selectAll("option")
+          //   .data(variables)
+          //   .enter()
+          //   .append("option")
+          //   .attr("value", function(d) { return d; })
+          //   .text(function(d) { return d; })
+          //   .each(function(d) {
+          //     // get the min and max values from the data for each variable
+          //     ranges[d] = d3.extent(data.features,
+          //         function(e) { return +e.properties[d]; });
+          //   });
+
+
+            // Refactored to include input control
+            var variables = {"tv": "Target Universe", "per": "Persuasion Universe", "td": "Target Voters per Sq Mile", "perd": "Persuasion Voters per Sq Mile", "favt": "Marco Favorablility/Target Voters",
+                              "favr" : "Marco Favorablility Index", "sat" : "Satellite/Target Voters", "satr" : "Satellite Viewership Index", "cab" : "Cable/Target Voters", "cabr" : "Cable Viewership Index",
+                              }
+            var ranges = {};
+
+            var keysArray = []
+
+            $.each(variables, function(key, val){ keysArray.push(key) });
+
+            var valsArray = []
+
+            $.each(variables, function(key, val){ valsArray.push(val) });
+
+            var selected = keysArray[0];
+
+            d3.select("#variables")
+                       .append("select")
+                       .on("change", function() {
+                           selected = d3.select(this).property("value");
+                           color.domain(ranges[selected]);
+                           geojson.setStyle(
+                             function style(feature) {
+                               return {
+                                   fillColor: color(+feature.properties[selected])
+                               };
+                             }
+                           );
+                       })
+                       .selectAll("option")
+                       .data(keysArray)
+                       .enter()
+                       .append("option")
+                       .attr("value", function(d) { return d; })
+                       .text(function(d,i){ return valsArray[i] })
+                       .each(function(d) {
+                         ranges[d] = d3.extent(data.features,
+                             function(e) { return +e.properties[d]; });
+                                 });
+
+
+          // define scale
+          var color = d3.scale.linear()
+              .domain(ranges[selected])
+              .range(['#F0F0D0', '#930F16']);
+          // ***END NEW***
+
+          function style(feature) {
+            return {
+                fillColor: color(+feature.properties[selected]),
+                weight: 1,
+                opacity: 0.5, // line opacity
+                color: 'black',
+                fillOpacity: 0.9 // opacity of colors in shapes
+            };
+          }
+
+      function highlightFeature(e) {
+        var layer = e.target;
+        layer.setStyle({
+          weight: 10,
+          color: '#666',
+          dashArray: '',
+          fillOpacity: 0.2
+        });
+        if (!L.Browser.ie && !L.Browser.opera) {
+          layer.bringToFront();
+        }
+      }
+
+      var geojson;
+
+      function resetHighlight(e) {
+        geojson.resetStyle(e.target);
+      }
+
+      function addCommas(nStr)
+      {
+      	nStr += '';
+      	x = nStr.split('.');
+      	x1 = x[0];
+      	x2 = x.length > 1 ? '.' + x[1] : '';
+      	var rgx = /(\d+)(\d{3})/;
+      	while (rgx.test(x1)) {
+      		x1 = x1.replace(rgx, '$1' + ',' + '$2');
+      	}
+      	return x1 + x2;
+      }
+
+
+      // pop up code
+  //     var newicon = L.icon({
+  //       iconUrl: 'logo.png',
+  //       iconSize: [50,50],
+  //     })
+  //
+  //     var marker = L.marker(new L.LatLng(41.77, -87.6), {
+  //     icon: newicon,
+  //     draggable: true,
+  // }).addTo(map);
+  //
+  //
+  //
+  //
+  //     var newpopup = L.popup({closeOnClick: false})
+  //       .setLatLng([41.77, -87.6])
+  //       .setContent("<DT><b>Target Definition:</b> Voters who voted in the last two caucus plus the top 100k modeled voters.<br>" +
+  //     "<DT><b>Statewide Statistics<br>" +
+  //     "<DD>Registered Voters: </b> number<br>" +
+  //     "<DD><b>Total Households: </b> number<br>" +
+  //     "<DD><b>Total Landlines: </b> number<br>" +
+  //     "<DD><b>Target Voters: </b> number<br>" +
+  //     "<DD><b>Target Households: </b> number<br>" +
+  //     "<DD><b>Target Landlines: </b> number<br>" )
+  //       .openOn(map);
+  //
+  //     marker.bindPopup(newpopup);
+
+      geojson = L.geoJson(data, {
+        style: style,
+        onEachFeature: function(feature, layer){
+          layer.on({
+            mouseover: highlightFeature,
+            mouseout: resetHighlight,
+        })
+        layer.bindPopup('<b>Zip Code: </b>' + feature.properties.ZCTA5CE10 + '<br>' +
+        "<DT>" +
+        "<b><DT> Total Voters: </b> " + addCommas(feature.properties.all) + '<br>' +
+        "<b><DD> Households: </b>" + addCommas(feature.properties.hh) + '<br>' +
+        "<b><DD> Landlines: </b>" + addCommas(feature.properties.ll) + '<br>' +
+        '<b><DT> Target Voters: </b>' + addCommas(feature.properties.tv) + '<br>' +
+        "<b><DD> Target Households: </b> " + addCommas(feature.properties.thh) + '<br>' +
+        "<b><DD> Target Landlines: </b>" + addCommas(feature.properties.tll) + '<br>' +
+        '<b><DD> # of Voters Age 18-34: </b>' + addCommas(feature.properties.age18) + "<br>" +
+        '<b><DD> # of Voters Age 35-54: </b>' + addCommas(feature.properties.age35) + "<br>" +
+        '<b><DD> # of Voters Age 55+: </b>' + addCommas(feature.properties.age55) + "<br>" +
+        '<b><DD> # of Voters Age Unknown: </b>' + addCommas(feature.properties.ageu) + "<br>" +
+        '<b><DD> # of Voters who voted in 2012 Caucus </b>' + addCommas(feature.properties.vh) + "<br>" +
+        '<b><DD> # of Voters with $0-35k Income: </b>' + addCommas(feature.properties.inc0) + "<br>" +
+        '<b><DD> # of Voters with $35-75k Income: </b>' + addCommas(feature.properties.inc35) + "<br>" +
+        '<b><DD> # of Voters with $75-125k Income: </b>' + addCommas(feature.properties.inc75) + "<br>" +
+        '<b><DD> # of Voters with $200k+ Income: </b>' + addCommas(feature.properties.inc200) + "<br>" +
+        '<b><DD> # of Voters with Income Unknown: </b>' + addCommas(feature.properties.incu) + "<br>" +
+        '<b><DT> Modeled Universe</b>' +
+        '<b><DD> Number of People Favorable Towards Marco: </b>' + addCommas(feature.properties.fav) + "<br>" +
+        '<b><DD> Number of Persuadable Voters: </b>' + addCommas(feature.properties.per) + "<br>" +
+        '<b><DD> Number of Target Voters per Sq Mile: </b>' + addCommas(feature.properties.td) + "<br>" +
+        '<b><DD> Number of Persuadable Voters per Sq Mile: </b>' + addCommas(feature.properties.perd) + "<br>" +
+        '<b><DD> Marco Favorability Index: </b>' + addCommas(feature.properties.favr) + "<br>" +
+        '<b><DD> Satellite Viewership Index: </b>' + addCommas(feature.properties.satr) + "<br>" +
+        '<b><DD> Cable Viewership Index: </b>' + addCommas(feature.properties.cabr) + "<br>" +
+        "</DT>"
+          )
+        }
+      }).addTo(map);
+};
+
+   </script>
+</body>

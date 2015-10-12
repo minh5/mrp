@@ -354,6 +354,5 @@ eScore <- as.data.frame(tapply(as.numeric(unlist(census2$econScore)),census2$ST,
 final <- cbind(as.data.frame(levels(as.factor(census2$ST))),rScore,aScore,eScore)
 names(final) <- c("ST","right","approve","econ")
 
-
 #writing results to csv to create maps
 write.csv(final, "predictions.csv",row.names=F)
