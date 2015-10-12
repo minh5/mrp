@@ -12,7 +12,12 @@ so it took me a while to understand the theoretical underpinnings of MRP and how
 Just some notes that I want you to be aware of when you clone this repo.
 
 * The ``.csv`` files will not be there due to a previous conversation we had regarding it.
-* My deliverables to you will the ``summary.html`` and the ``index.html`` file
+* My deliverables to you will the ``summary.html`` and the ``index.html`` file.
+* In terms of folders, here's a short summary of their contents:
+  + ``census``: census files for post-stratification
+  + ``lit-review``: papers on MRP and some test code
+  + ``maps``: maps to visualize results
+  +  ``source``: files sent to me for this exercise
 * For some reason, Chrome doesn't execute the ``index.html`` file correctly, so you can either try:
   + opening the file in Mozilla
   + running a local server (I find running ```python -m SimpleHTTPServer``` to be the simplest)
