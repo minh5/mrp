@@ -80,16 +80,22 @@ img {
 <li>Visualize the findings</li>
 </ul></li>
 </ul>
-<p><strong>#### Literature Review</strong> To begin, I did not know what multi-level regression post-stratification (also known as MRP) is at the beginning of this challenge. To make up for this, I downloaded the <a href="http://www.princeton.edu/~jkastell/MRP_primer/mrp_primer.pdf">paper</a> by Kastellec, Lax, and Phillips (2014). I have also downloaded another <a href="http://www.stat.columbia.edu/~gelman/research/published/parkgelmanbafumi.pdf">paper</a> by Park, Gelman, and Bafumi(2004) on a Bayesian approach to MRP. The second paper was not as important since I do not plan on fitting distributions nor does my census file for post-stratification dataset justify using such a technique.</p>
-<p><strong>#### Methods Summary </strong> After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects.</p>
+<div id="literature-review" class="section level4">
+<h4>Literature Review</h4>
+<p>To begin, I did not know what multi-level regression post-stratification (also known as MRP) is at the beginning of this challenge. To make up for this, I downloaded the <a href="http://www.princeton.edu/~jkastell/MRP_primer/mrp_primer.pdf">paper</a> by Kastellec, Lax, and Phillips (2014). I have also downloaded another <a href="http://www.stat.columbia.edu/~gelman/research/published/parkgelmanbafumi.pdf">paper</a> by Park, Gelman, and Bafumi(2004) on a Bayesian approach to MRP. The second paper was not as important since I do not plan on fitting distributions nor does my census file for post-stratification dataset justify using such a technique.</p>
+</div>
+<div id="methods-summary" class="section level4">
+<h4>Methods Summary</h4>
+<p>After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects.</p>
 <ul>
 <li>First, rather than fitting a logit model and using the betas to derive the statewide estimates, I took a more machine learning approach.</li>
 <li>Second, rather than using an aggegrate Census file for post-stratification from sources like DataFerret, I used individual level Census data for post-stratification.</li>
 </ul>
 <p>The final output with statewide estimates called <code>predictions.csv</code>. It will be accompanied by an interactive map illustrating in the <code>/maps</code> directory.</p>
 </div>
-<div id="code" class="section level2">
-<h2>Code</h2>
+</div>
+<div id="procedure" class="section level2">
+<h2>Procedure</h2>
 <p>As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but <code>caret</code> makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest, that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were random forest, classification and regression trees, and neural networks. I also included logit as a baseline for comparision.</p>
 <div id="preprocessing-and-cleaning" class="section level3">
 <h3>Preprocessing and cleaning</h3>
@@ -137,8 +143,7 @@ data &lt;- data[,-grep(&quot;^demState&quot;,names(data))]</code></pre>
 </div>
 <div id="model-building" class="section level3">
 <h3>Model Building</h3>
-<div id="rightwrong-direction-model" class="section level4">
-<h4>Right/Wrong Direction Model</h4>
+<p>** Right/Wrong Direction Model**</p>
 <p>Running the first model - perception whether or not the country is in the right direction using random forest, CART, logit, and neural network algorithm. First I prepped the data for model training</p>
 <pre class="r"><code>#creating columns where we are trying to measure predict
 dv &lt;- as.data.frame(ifelse(tmpData$nr1 == 1, 1, 0))
@@ -360,10 +365,8 @@ nnet_tune1 &lt;- train(dv ~ .,
 ## ROC was used to select the optimal model using  the largest value.
 ## The final values used for the model were size = 1 and decay = 0.5.</code></pre>
 <pre class="r"><code>results$nnet &lt;- predict(nnet_tune1, newdata = test, type = 'prob')</code></pre>
-</div>
-</div>
-<div id="model-evaluation-and-selection" class="section level3">
-<h3>Model Evaluation and Selection</h3>
+<div id="model-evaluation-and-selection" class="section level4">
+<h4>Model Evaluation and Selection</h4>
 <p>Creating the results into an evaluation table and evaluated the models using the <a href="https://en.wikipedia.org/wiki/Brier_score">Brier Score</a>, whichever model has the lower score is the one we selected.</p>
 <pre class="r"><code>eval &lt;- as.data.frame(results$obs)
 for (i in 2:ncol(results)){
@@ -385,8 +388,7 @@ require(scoring)</code></pre>
 <pre><code>## [1] 0.2217631</code></pre>
 <pre class="r"><code>mean(brierscore(obs ~ nnet, data = eval)) #winner</code></pre>
 <pre><code>## [1] 0.2025948</code></pre>
-<div id="measuring-president-obamas-approval" class="section level4">
-<h4>Measuring President Obama’s Approval</h4>
+<p><strong>Measuring President Obama’s Approval</strong></p>
 <p>The system and metrics are exactly the same as the first model</p>
 <pre class="r"><code>#creating columns where we are trying to measure predict
 data$dv &lt;- ifelse(tmpData$nr2 &lt;= 2, 1, 0)
@@ -595,9 +597,8 @@ nnet_tune2 &lt;- train(dv ~ .,
 ## The final values used for the model were size = 1 and decay = 0.5.</code></pre>
 <pre class="r"><code>results$nnet &lt;- predict(nnet_tune2, newdata = test, type = 'prob')</code></pre>
 </div>
-</div>
-<div id="model-evaluation-and-selection-1" class="section level3">
-<h3>Model Evaluation and Selection</h3>
+<div id="model-evaluation-and-selection-1" class="section level4">
+<h4>Model Evaluation and Selection</h4>
 <p>Same methods as the previous model</p>
 <pre class="r"><code>eval &lt;- as.data.frame(results$obs)
 for (i in 2:ncol(results)){
@@ -619,8 +620,7 @@ mean(brierscore(obs ~ rf, data = eval))</code></pre>
 <pre><code>## [1] 0.2447242</code></pre>
 <pre class="r"><code>mean(brierscore(obs ~ nnet, data = eval)) #winner</code></pre>
 <pre><code>## [1] 0.2259242</code></pre>
-<div id="economy-as-the-most-important-issue" class="section level4">
-<h4>Economy as the Most Important Issue</h4>
+<p>** Economy as the Most Important Issue**</p>
 <p>Same preparation methods as the first two models</p>
 <pre class="r"><code>data$dv &lt;- ifelse(tmpData$nr3 == 1, 1, 0)
 data$dv &lt;- as.factor(data$dv)
@@ -827,8 +827,8 @@ nnet_tune3 &lt;- train(dv ~ .,
 ## The final values used for the model were size = 1 and decay = 2.</code></pre>
 <pre class="r"><code>results$nnet &lt;- predict(nnet_tune3, newdata = test, type = 'prob')</code></pre>
 </div>
-<div id="evaulation" class="section level4">
-<h4>Evaulation</h4>
+<div id="model-evaluation-and-selection-2" class="section level4">
+<h4>Model Evaluation and Selection</h4>
 <p>I used the same model evaluation methods as the last two models</p>
 <pre class="r"><code>eval &lt;- as.data.frame(results$obs)
 for (i in 2:ncol(results)){
@@ -855,16 +855,17 @@ mean(brierscore(obs ~ rf, data = eval)) </code></pre>
 </div>
 <div id="post-stratification" class="section level2">
 <h2>Post-stratification</h2>
-<p>As I have mentioned before, I have census level data from <a href="https://www.kaggle.com/c/2013-american-community-survey/data">Kaggle</a>. The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.<br />we I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.</p>
+<p>As I have mentioned before, I have census level data from <a href="https://www.kaggle.com/c/2013-american-community-survey/data">Kaggle</a>. The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.</p>
+<p>I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.</p>
 <pre class="r"><code>census &lt;- rbind(data.table::fread('census/ss13pusa.csv', select = c('ST','SEX','AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE),
                 data.table::fread('census/ss13pusb.csv', select = c('ST','SEX', 'AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE))</code></pre>
 <pre><code>## 
-Read 29.1% of 1613672 rows
-Read 67.5% of 1613672 rows
+Read 37.2% of 1613672 rows
+Read 73.7% of 1613672 rows
 Read 1613672 rows and 7 (of 283) columns from 1.416 GB file in 00:00:04
 ## 
-Read 36.2% of 1519123 rows
-Read 77.0% of 1519123 rows
+Read 35.5% of 1519123 rows
+Read 75.0% of 1519123 rows
 Read 1519123 rows and 7 (of 283) columns from 1.333 GB file in 00:00:04</code></pre>
 <p>I refactored variables to match the ones in the training set so the models can be used to predict for the entire Census file</p>
 <pre class="r"><code>census$gender &lt;- ifelse(census$SEX == 1, &quot;Male&quot;, &quot;Female&quot;)
@@ -983,6 +984,22 @@ print(final, row.names = FALSE)</code></pre>
 ##  54 33.52913 42.26204 41.19781
 ##  55 41.60355 52.45832 35.93803
 ##  56 30.55128 43.68244 37.20231</code></pre>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<div id="results" class="section level3">
+<h3>Results</h3>
+<p>This process takes the MRP framework and tweaked it a little bit. The most important aspect is that it is possible to use machine learning algorithms such as the ones presented and use them to get statewide estimates. From my understanding, logit models are used because they are interpretatable; you can use the betas from the model and fit them into a Census file with the demographics proportioned out appropriately and get accurate results. Techniques such as random forests and neural networks does not have this interpretability component and are a bit more complicated to understand and carry out, however with the correct Census file, like the one I presented here, we can start to overcome those challenges and pick more complicated, accurate models to train on. From this approach, we see that neural networks won out in every single instance.</p>
+</div>
+<div id="improvements" class="section level3">
+<h3>Improvements</h3>
+<p>I know there are weaknesses in my approach. First, I am aware that I did not utilize the traditional MRP approach, and that was very deliberate. Second, I only grouped the respondents into geographic regions rather than at a state level. If I had a chance to redo this process, I would dummy out all ~50 states and regions to have state level effects. Right now, the neutral networks would assume that all Hispanic males with a college degree over 55 years old in California will be the same as Oregon, which is most likely incorrect. There are even varying levels of political preferences within a state! The preprocessing step only takes into account variation within the regions, rather than the states, and that is something I would like to tackle.</p>
+<p>Another improvement I would like to consider would be to add in more models. The <code>caret</code> package has a slew of machine learning techniques that were not used there such as boosting, linear discriminant analysis, and support vector machines that I did not have a chance to try out. By testing and benchmarching performance, we can derive more accurate estimates on public opinion.</p>
+</div>
+<div id="acknowledgments" class="section level3">
+<h3>Acknowledgments</h3>
+<p>I would like to thank Kyle Dropp for the dataset. I had alot of fun playing with it and applying a different modeling approach. This is something I usually don’t get to do with my day to day job and I kind of miss the predictive analytics side of data science (I have been relegated to the more engineering side, as of late). The modeling approaches here are not indictative of how 0ptimus approaches this issue, it is just my own way of doing things, if left to my own devices and interpretation. If you have any questions, please do not hesitate to reach out.</p>
+</div>
 </div>
 
 

@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ## Executive Summary
-The purpose of this challenge is for me to get statewide estimates based on poling data collected from Morning Consult. The public opinion variables of interest that I will be measuring will be the percentage of people who believe the country is heading in the right direction, President Obama's approval, and the economy is their most important issue.
+  The purpose of this challenge is for me to get statewide estimates based on poling data collected from Morning Consult. The public opinion variables of interest that I will be measuring will be the percentage of people who believe the country is heading in the right direction, President Obama's approval, and the economy is their most important issue.
 
 * Below is a summary of steps:
     + Conducted a literature review of MRP
@@ -15,20 +15,20 @@ The purpose of this challenge is for me to get statewide estimates based on poli
     + Visualize the findings
 
 #### Literature Review
-To begin, I did not know what multi-level regression post-stratification (also known as MRP) is at the beginning of this challenge. To make up for this, I downloaded the [paper](http://www.princeton.edu/~jkastell/MRP_primer/mrp_primer.pdf) by Kastellec, Lax, and Phillips (2014). I have also downloaded another [paper](http://www.stat.columbia.edu/~gelman/research/published/parkgelmanbafumi.pdf) by Park, Gelman, and Bafumi(2004) on a Bayesian approach to MRP. The second paper was not as important since I do not plan on fitting distributions nor does my census file for post-stratification dataset justify using such a technique.
+  To begin, I did not know what multi-level regression post-stratification (also known as MRP) is at the beginning of this challenge. To make up for this, I downloaded the [paper](http://www.princeton.edu/~jkastell/MRP_primer/mrp_primer.pdf) by Kastellec, Lax, and Phillips (2014). I have also downloaded another [paper](http://www.stat.columbia.edu/~gelman/research/published/parkgelmanbafumi.pdf) by Park, Gelman, and Bafumi(2004) on a Bayesian approach to MRP. The second paper was not as important since I do not plan on fitting distributions nor does my census file for post-stratification dataset justify using such a technique.
 
 #### Methods Summary 
-After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects. 
+  After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects. 
 
   * First, rather than fitting a logit model and using the betas to derive the statewide estimates, I took a more machine learning approach. 
   * Second, rather than using an aggegrate Census file for post-stratification from sources like DataFerret, I used individual level Census data for post-stratification.
 
-The final output with statewide estimates called ```predictions.csv```. It will be accompanied by an interactive map illustrating in the ```/maps``` directory.
+  The final output with statewide estimates called ```predictions.csv```. It will be accompanied by an interactive map illustrating in the ```/maps``` directory.
 
 
 ## Procedure
 
-As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but ```caret``` makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest,  that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were random forest, classification and regression trees, and neural networks. I also included logit as a baseline for comparision. 
+  As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but ```caret``` makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest,  that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were random forest, classification and regression trees, and neural networks. I also included logit as a baseline for comparision. 
 
 ### Preprocessing and cleaning
 Loading up the libraries and data needed
@@ -66,7 +66,7 @@ names(data) <- c("male","female","native","asian","black","white","other.race","
                   "under18","age18.35","age35.55","age55plus", "hs","college","postgraduate","demState")
 ```
 
-Due to my experience, I know the geographies play a role, therefore, I decided to break the states into geographic regions as dictated by the [Census](http://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf). This could be used to look at the regional effects if needed.
+  Due to my experience, I know the geographies play a role, therefore, I decided to break the states into geographic regions as dictated by the [Census](http://www2.census.gov/geo/pdfs/maps-data/maps/reference/us_regdiv.pdf). This could be used to look at the regional effects if needed.
 ```{r}
 data$newengland <- ifelse(data$demState %in% c(7, 20, 22, 30, 40, 46), 1,0)
 data$midatlantic <- ifelse(data$demState %in% c(31, 33, 39),1,0)
@@ -85,7 +85,7 @@ data <- data[,-grep("^demState",names(data))]
 
 ** Right/Wrong Direction Model**
 
-Running the first model - perception whether or not the country is in the right direction using random forest, CART, logit, and neural network algorithm. First I prepped the data for model training
+  Running the first model - perception whether or not the country is in the right direction using random forest, CART, logit, and neural network algorithm. First I prepped the data for model training
 
 ```{r}
 #creating columns where we are trying to measure predict
@@ -173,7 +173,7 @@ results$nnet <- predict(nnet_tune1, newdata = test, type = 'prob')
 
 #### Model Evaluation and Selection
 
-Creating the results into an evaluation table and evaluated the models using the [Brier Score](https://en.wikipedia.org/wiki/Brier_score), whichever model has the lower score is the one we selected.
+  Creating the results into an evaluation table and evaluated the models using the [Brier Score](https://en.wikipedia.org/wiki/Brier_score), whichever model has the lower score is the one we selected.
 
 ```{r}
 eval <- as.data.frame(results$obs)
@@ -384,9 +384,9 @@ mean(brierscore(obs ~ nnet, data = eval)) #winner
 
 ## Post-stratification
 
-As I have mentioned before, I have census level data from [Kaggle](https://www.kaggle.com/c/2013-american-community-survey/data). The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.  
-we
-I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.
+  As I have mentioned before, I have census level data from [Kaggle](https://www.kaggle.com/c/2013-american-community-survey/data). The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.  
+
+  I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.
 
 ```{r warnings = FALSE, message = FALSE}
 census <- rbind(data.table::fread('census/ss13pusa.csv', select = c('ST','SEX','AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE),
@@ -456,4 +456,18 @@ names(final) <- c("ST","right","approve","econ")
 print(final, row.names = FALSE)
 ```
 
-## Results
+## Conclusion
+
+### Results
+
+  This process takes the MRP framework and tweaked it a little bit. The most important aspect is that it is possible to use machine learning algorithms such as the ones presented and use them to get statewide estimates. From my understanding, logit models are used because they are interpretatable; you can use the betas from the model and fit them into a Census file with the demographics proportioned out appropriately and get accurate results. Techniques such as random forests and neural networks does not have this interpretability component and are a bit more complicated to understand and carry out, however with the correct Census file, like the one I presented here, we can start to overcome those challenges and pick more complicated, accurate models to train on. From this approach, we see that neural networks won out in every single instance. 
+
+
+### Improvements
+  I know there are weaknesses in my approach. First, I am aware that I did not utilize the traditional MRP approach, and that was very deliberate. Second, I only grouped the respondents into geographic regions rather than at a state level. If I had a chance to redo this process, I would dummy out all ~50 states and regions to have state level effects. Right now, the neutral networks would assume that all Hispanic males with a college degree over 55 years old in California will be the same as Oregon, which is most likely incorrect. There are even varying levels of political preferences within a state! The preprocessing step only takes into account variation within the regions, rather than the states, and that is something I would like to tackle.
+  
+  Another improvement I would like to consider would be to add in more models. The ```caret``` package has a slew of machine learning techniques that were not used there such as boosting, linear discriminant analysis, and support vector machines  that I did not have a chance to try out. By testing and benchmarching performance, we can derive more accurate estimates on public opinion.
+  
+### Acknowledgments 
+
+  I would like to thank Kyle Dropp for the dataset. I had alot of fun playing with it and applying a different modeling approach. This is something I usually don't get to do with my day to day job and I kind of miss the predictive analytics side of data science (I have been relegated to the more engineering side, as of late). The modeling approaches here are not indictative of how 0ptimus approaches this issue, it is just my own way of doing things, if left to my own devices and interpretation. If you have any questions, please do not hesitate to reach out.
