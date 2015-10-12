@@ -18,17 +18,17 @@ output: html_document
   To begin, I did not know what multi-level regression post-stratification (also known as MRP) is at the beginning of this challenge. To make up for this, I downloaded the [paper](http://www.princeton.edu/~jkastell/MRP_primer/mrp_primer.pdf) by Kastellec, Lax, and Phillips (2014). I have also downloaded another [paper](http://www.stat.columbia.edu/~gelman/research/published/parkgelmanbafumi.pdf) by Park, Gelman, and Bafumi(2004) on a Bayesian approach to MRP. The second paper was not as important since I do not plan on fitting distributions nor does my census file for post-stratification dataset justify using such a technique.
 
 #### Methods Summary 
-  After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects. 
+  After doing an intensive literature review and reviewing the R code (attached in the ```research``` folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al (2014) in two different respects. 
 
   * First, rather than fitting a logit model and using the betas to derive the statewide estimates, I took a more machine learning approach. 
-  * Second, rather than using an aggegrate Census file for post-stratification from sources like DataFerret, I used individual level Census data for post-stratification.
+  * Second, rather than using an aggegrate Census file for post-stratification from sources like ```DataFerret```, I used individual level Census data for post-stratification.
 
   The final output with statewide estimates called ```predictions.csv```. It will be accompanied by an interactive map illustrating in the ```/maps``` directory.
 
 
 ## Procedure
 
-  As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but ```caret``` makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest,  that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were random forest, classification and regression trees, and neural networks. I also included logit as a baseline for comparision. 
+  As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but ```caret``` makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest,  that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were **random forest, classification and regression trees, and neural networks**. I also included **logit models** as a baseline for comparision. 
 
 ### Preprocessing and cleaning
 Loading up the libraries and data needed
@@ -53,7 +53,6 @@ dataPrep <- tmpData[,c("nr1","demGender","demRace","demHisp")]
 dataPrep <- cbind(dataPrep, ageGroups, eduGroups) 
 
 #explicitly typecast numeric into factor variables
-names(dataPrep)
 for (i in 2:5){
   dataPrep[,i] <- as.factor(dataPrep[,i])
 }
@@ -116,7 +115,7 @@ names(results)[1] <- 'obs'
 ```
 
 
-**Logistic regression** as a baseline
+**Logistic Regression** as a baseline
 ```{r warning = FALSE, error = FALSE, message = FALSE}
 logit_tune1 <- train(dv ~.,
                    method = 'glm',
@@ -127,7 +126,7 @@ logit_tune1
 results$logit <- predict(logit_tune1, newdata = test, type = 'prob')
 ```
 
-**Random forest**
+**Random Forest**
 ```{r warning = FALSE, error = FALSE, message = FALSE}
 require(randomForest)
 tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
@@ -188,10 +187,10 @@ eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
 #model evaluation
 require(scoring)
 
-mean(brierscore(obs ~ rf, data = eval))
-mean(brierscore(obs ~ logit, data = eval))
-mean(brierscore(obs ~ cart, data = eval))
-mean(brierscore(obs ~ nnet, data = eval)) #winner
+cat("Brier Score of Logit Model is:", mean(brierscore(obs ~ logit, data = eval)))
+cat("Brier Score of Random Forest Model is:", mean(brierscore(obs ~ rf, data = eval)))
+cat("Brier Score of CART Model is:", mean(brierscore(obs ~ cart, data = eval)))
+cat("Brier Score of Neural Network Model is:", mean(brierscore(obs ~ nnet, data = eval))) #winner
 ```
 
 
@@ -217,7 +216,7 @@ results <- as.data.frame(test$dv)
 names(results)[1] <- 'obs'
 ```
 
-**Logistic regression**
+**Logistic Regression**
 ```{r warning = FALSE, error = FALSE, message = FALSE}
 logit_tune2 <- train(dv ~.,
                     method = 'glm',
@@ -227,7 +226,7 @@ logit_tune2
 results$logit <- predict(logit_tune2, newdata = test, type = 'prob')
 ``` 
 
-**Random forest**
+**Random Forest**
 ```{r warning = FALSE, error = FALSE, message = FALSE}
 tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
 rf_tune2 <- train(dv ~ . , 
@@ -252,7 +251,7 @@ cart_tune2
 results$cart <- predict(cart_tune2, newdata = test, type = 'prob')
 ```
 
-**Neural network**
+**Neural Network**
 ```{r warning = FALSE, error = FALSE, message = FALSE, results = "hide"}
 tuningGrid<-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
 nnet_tune2 <- train(dv ~ .,
@@ -282,12 +281,10 @@ names(eval) <- names(results)
 eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
 
 #model evaluation
-require(scoring)
-
-mean(brierscore(obs ~ rf, data = eval))
-mean(brierscore(obs ~ logit, data = eval))
-mean(brierscore(obs ~ cart, data = eval))
-mean(brierscore(obs ~ nnet, data = eval)) #winner
+cat("Brier Score of Logit Model is:", mean(brierscore(obs ~ logit, data = eval)))
+cat("Brier Score of Random Forest Model is:", mean(brierscore(obs ~ rf, data = eval)))
+cat("Brier Score of CART Model is:", mean(brierscore(obs ~ cart, data = eval)))
+cat("Brier Score of Neural Network Model is:", mean(brierscore(obs ~ nnet, data = eval))) #winner
 ```
 
 ** Economy as the Most Important Issue**
@@ -309,7 +306,7 @@ results <- as.data.frame(test$dv)
 names(results)[1] <- 'obs'
 ```
 
-**Logistic regression**
+**Logistic Regression**
 ```{r warning = FALSE, error = FALSE, message = FALSE}
 logit_tune3 <- train(dv ~.,
                     method = 'glm',
@@ -319,7 +316,7 @@ logit_tune3
 results$logit <- predict(logit_tune3, newdata = test, type = 'prob')
 ```
 
-**Random forest**
+**Random Forest**
 ```{r warning = FALSE, error = FALSE, message = FALSE}
 tuningGrid <- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
 rf_tune3 <- train(dv ~ . , 
@@ -374,17 +371,18 @@ names(eval) <- names(results)
 eval$obs <- ifelse(eval$obs == 'Yes', 1, 0)
 
 #model evaluation
-require(scoring)
-
-mean(brierscore(obs ~ rf, data = eval)) 
-mean(brierscore(obs ~ logit, data = eval)) 
-mean(brierscore(obs ~ cart, data = eval))
-mean(brierscore(obs ~ nnet, data = eval)) #winner 
+cat("Brier Score of Logit Model is:", mean(brierscore(obs ~ logit, data = eval)))
+cat("Brier Score of Random Forest Model is:", mean(brierscore(obs ~ rf, data = eval)))
+cat("Brier Score of CART Model is:", mean(brierscore(obs ~ cart, data = eval)))
+cat("Brier Score of Neural Network Model is:", mean(brierscore(obs ~ nnet, data = eval))) #winner
 ```
 
 ## Post-stratification
 
-  As I have mentioned before, I have census level data from [Kaggle](https://www.kaggle.com/c/2013-american-community-survey/data). The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.  
+  As I have mentioned before, I have census level data from [Kaggle](https://www.kaggle.com/c/2013-american-community-survey/data). The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 
+  
+  * I do not have to worry about calculating ad-hoc estimates for missing states and 
+  * I do not have to worry about calculating weights on the census tract/block/state level.  
 
   I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.
 

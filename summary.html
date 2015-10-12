@@ -86,17 +86,17 @@ img {
 </div>
 <div id="methods-summary" class="section level4">
 <h4>Methods Summary</h4>
-<p>After doing an intensive literature review and reviewing the R code (attached in the research folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al in two different respects.</p>
+<p>After doing an intensive literature review and reviewing the R code (attached in the <code>research</code> folder), I set out to create the statewide estimates, however it is important to note that my approach was different from the conventional approach summarized by Kastellec et. al (2014) in two different respects.</p>
 <ul>
 <li>First, rather than fitting a logit model and using the betas to derive the statewide estimates, I took a more machine learning approach.</li>
-<li>Second, rather than using an aggegrate Census file for post-stratification from sources like DataFerret, I used individual level Census data for post-stratification.</li>
+<li>Second, rather than using an aggegrate Census file for post-stratification from sources like <code>DataFerret</code>, I used individual level Census data for post-stratification.</li>
 </ul>
 <p>The final output with statewide estimates called <code>predictions.csv</code>. It will be accompanied by an interactive map illustrating in the <code>/maps</code> directory.</p>
 </div>
 </div>
 <div id="procedure" class="section level2">
 <h2>Procedure</h2>
-<p>As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but <code>caret</code> makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest, that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were random forest, classification and regression trees, and neural networks. I also included logit as a baseline for comparision.</p>
+<p>As I previously stated, I used a more machine learning approach. Logit models are used in MRP because you can take the betas of the models and apply them to get state level estimates in the post-stratification process. However, I want to show that you can use the same approach using machine learning models. While, logit models are accurate, their strength lies in their interpretability. Machine learning algorihms are bit more nuanced and complex to set up but <code>caret</code> makes it easy. Not to mention, the rise in computation power and speed makes algorithms like neural networks a viable option. Lastly, the final reason for this approach is, to be honest, that I have been wanting to try different models in the caret package and want an opportunity outside of work to tinker and play around with them. The models used were <strong>random forest, classification and regression trees, and neural networks</strong>. I also included <strong>logit models</strong> as a baseline for comparision.</p>
 <div id="preprocessing-and-cleaning" class="section level3">
 <h3>Preprocessing and cleaning</h3>
 <p>Loading up the libraries and data needed</p>
@@ -117,9 +117,7 @@ dataPrep &lt;- tmpData[,c(&quot;nr1&quot;,&quot;demGender&quot;,&quot;demRace&qu
 dataPrep &lt;- cbind(dataPrep, ageGroups, eduGroups) 
 
 #explicitly typecast numeric into factor variables
-names(dataPrep)</code></pre>
-<pre><code>## [1] &quot;nr1&quot;       &quot;demGender&quot; &quot;demRace&quot;   &quot;demHisp&quot;   &quot;ageGroups&quot; &quot;eduGroups&quot;</code></pre>
-<pre class="r"><code>for (i in 2:5){
+for (i in 2:5){
   dataPrep[,i] &lt;- as.factor(dataPrep[,i])
 }
 
@@ -170,7 +168,7 @@ control &lt;- trainControl(method = &quot;cv&quot;,
 #creating results table
 results &lt;- as.data.frame(test$dv)
 names(results)[1] &lt;- 'obs'</code></pre>
-<p><strong>Logistic regression</strong> as a baseline</p>
+<p><strong>Logistic Regression</strong> as a baseline</p>
 <pre class="r"><code>logit_tune1 &lt;- train(dv ~.,
                    method = 'glm',
                     data = train,
@@ -193,7 +191,7 @@ logit_tune1</code></pre>
 ## </code></pre>
 <pre class="r"><code>#appending to the results file for model evaluation and selection
 results$logit &lt;- predict(logit_tune1, newdata = test, type = 'prob')</code></pre>
-<p><strong>Random forest</strong></p>
+<p><strong>Random Forest</strong></p>
 <pre class="r"><code>require(randomForest)
 tuningGrid &lt;- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
 rf_tune1 &lt;- train(dv ~ . , 
@@ -380,14 +378,14 @@ eval$obs &lt;- ifelse(eval$obs == 'Yes', 1, 0)
 #model evaluation
 require(scoring)</code></pre>
 <pre><code>## Loading required package: scoring</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ rf, data = eval))</code></pre>
-<pre><code>## [1] 0.293221</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ logit, data = eval))</code></pre>
-<pre><code>## [1] 0.2032459</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ cart, data = eval))</code></pre>
-<pre><code>## [1] 0.2217631</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ nnet, data = eval)) #winner</code></pre>
-<pre><code>## [1] 0.2025948</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Logit Model is:&quot;, mean(brierscore(obs ~ logit, data = eval)))</code></pre>
+<pre><code>## Brier Score of Logit Model is: 0.2032459</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Random Forest Model is:&quot;, mean(brierscore(obs ~ rf, data = eval)))</code></pre>
+<pre><code>## Brier Score of Random Forest Model is: 0.293221</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of CART Model is:&quot;, mean(brierscore(obs ~ cart, data = eval)))</code></pre>
+<pre><code>## Brier Score of CART Model is: 0.2217631</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Neural Network Model is:&quot;, mean(brierscore(obs ~ nnet, data = eval))) #winner</code></pre>
+<pre><code>## Brier Score of Neural Network Model is: 0.2025948</code></pre>
 <p><strong>Measuring President Obama’s Approval</strong></p>
 <p>The system and metrics are exactly the same as the first model</p>
 <pre class="r"><code>#creating columns where we are trying to measure predict
@@ -405,7 +403,7 @@ test&lt;-data[-split,]
 #creating results table
 results &lt;- as.data.frame(test$dv)
 names(results)[1] &lt;- 'obs'</code></pre>
-<p><strong>Logistic regression</strong></p>
+<p><strong>Logistic Regression</strong></p>
 <pre class="r"><code>logit_tune2 &lt;- train(dv ~.,
                     method = 'glm',
                     data = train,
@@ -427,7 +425,7 @@ logit_tune2</code></pre>
 ## 
 ## </code></pre>
 <pre class="r"><code>results$logit &lt;- predict(logit_tune2, newdata = test, type = 'prob')</code></pre>
-<p><strong>Random forest</strong></p>
+<p><strong>Random Forest</strong></p>
 <pre class="r"><code>tuningGrid &lt;- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
 rf_tune2 &lt;- train(dv ~ . , 
                  data=train, 
@@ -540,7 +538,7 @@ cart_tune2</code></pre>
 ## ROC was used to select the optimal model using  the largest value.
 ## The final value used for the model was cp = 0.</code></pre>
 <pre class="r"><code>results$cart &lt;- predict(cart_tune2, newdata = test, type = 'prob')</code></pre>
-<p><strong>Neural network</strong></p>
+<p><strong>Neural Network</strong></p>
 <pre class="r"><code>tuningGrid&lt;-expand.grid(.size = 1:5, .decay = c(0, 2, by = .5))
 nnet_tune2 &lt;- train(dv ~ .,
                    data = train,
@@ -610,16 +608,14 @@ names(eval) &lt;- names(results)
 eval$obs &lt;- ifelse(eval$obs == 'Yes', 1, 0)
 
 #model evaluation
-require(scoring)
-
-mean(brierscore(obs ~ rf, data = eval))</code></pre>
-<pre><code>## [1] 0.292561</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ logit, data = eval))</code></pre>
-<pre><code>## [1] 0.2266064</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ cart, data = eval))</code></pre>
-<pre><code>## [1] 0.2447242</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ nnet, data = eval)) #winner</code></pre>
-<pre><code>## [1] 0.2259242</code></pre>
+cat(&quot;Brier Score of Logit Model is:&quot;, mean(brierscore(obs ~ logit, data = eval)))</code></pre>
+<pre><code>## Brier Score of Logit Model is: 0.2266064</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Random Forest Model is:&quot;, mean(brierscore(obs ~ rf, data = eval)))</code></pre>
+<pre><code>## Brier Score of Random Forest Model is: 0.292561</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of CART Model is:&quot;, mean(brierscore(obs ~ cart, data = eval)))</code></pre>
+<pre><code>## Brier Score of CART Model is: 0.2447242</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Neural Network Model is:&quot;, mean(brierscore(obs ~ nnet, data = eval))) #winner</code></pre>
+<pre><code>## Brier Score of Neural Network Model is: 0.2259242</code></pre>
 <p>** Economy as the Most Important Issue**</p>
 <p>Same preparation methods as the first two models</p>
 <pre class="r"><code>data$dv &lt;- ifelse(tmpData$nr3 == 1, 1, 0)
@@ -635,7 +631,7 @@ test&lt;-data[-split,]
 #creating results table
 results &lt;- as.data.frame(test$dv)
 names(results)[1] &lt;- 'obs'</code></pre>
-<p><strong>Logistic regression</strong></p>
+<p><strong>Logistic Regression</strong></p>
 <pre class="r"><code>logit_tune3 &lt;- train(dv ~.,
                     method = 'glm',
                     data = train,
@@ -657,7 +653,7 @@ logit_tune3</code></pre>
 ## 
 ## </code></pre>
 <pre class="r"><code>results$logit &lt;- predict(logit_tune3, newdata = test, type = 'prob')</code></pre>
-<p><strong>Random forest</strong></p>
+<p><strong>Random Forest</strong></p>
 <pre class="r"><code>tuningGrid &lt;- data.frame(.mtry = floor(seq(1 , ncol(train) , length = 6)))
 rf_tune3 &lt;- train(dv ~ . , 
                  data=train, 
@@ -840,32 +836,34 @@ names(eval) &lt;- names(results)
 eval$obs &lt;- ifelse(eval$obs == 'Yes', 1, 0)
 
 #model evaluation
-require(scoring)
-
-mean(brierscore(obs ~ rf, data = eval)) </code></pre>
-<pre><code>## [1] 0.3196735</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ logit, data = eval)) </code></pre>
-<pre><code>## [1] 0.2473592</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ cart, data = eval))</code></pre>
-<pre><code>## [1] 0.2654061</code></pre>
-<pre class="r"><code>mean(brierscore(obs ~ nnet, data = eval)) #winner </code></pre>
-<pre><code>## [1] 0.2437011</code></pre>
+cat(&quot;Brier Score of Logit Model is:&quot;, mean(brierscore(obs ~ logit, data = eval)))</code></pre>
+<pre><code>## Brier Score of Logit Model is: 0.2473592</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Random Forest Model is:&quot;, mean(brierscore(obs ~ rf, data = eval)))</code></pre>
+<pre><code>## Brier Score of Random Forest Model is: 0.3196735</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of CART Model is:&quot;, mean(brierscore(obs ~ cart, data = eval)))</code></pre>
+<pre><code>## Brier Score of CART Model is: 0.2654061</code></pre>
+<pre class="r"><code>cat(&quot;Brier Score of Neural Network Model is:&quot;, mean(brierscore(obs ~ nnet, data = eval))) #winner</code></pre>
+<pre><code>## Brier Score of Neural Network Model is: 0.2437011</code></pre>
 </div>
 </div>
 </div>
 <div id="post-stratification" class="section level2">
 <h2>Post-stratification</h2>
-<p>As I have mentioned before, I have census level data from <a href="https://www.kaggle.com/c/2013-american-community-survey/data">Kaggle</a>. The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages: 1) I do not have to worry about calculating ad-hoc estimates for missing states and 2) I do not have to worry about calculating weights on the census tract/block/state level.</p>
+<p>As I have mentioned before, I have census level data from <a href="https://www.kaggle.com/c/2013-american-community-survey/data">Kaggle</a>. The main reason is that I have been using this Census file for a side projects and analysis. This provided me with some advantages:</p>
+<ul>
+<li>I do not have to worry about calculating ad-hoc estimates for missing states and</li>
+<li>I do not have to worry about calculating weights on the census tract/block/state level.</li>
+</ul>
 <p>I combined the two datasets together. The first set has the first half of the US States (listed in alphabetical order), while the second has the 2nd half. I take only the columns I need for faster loading.</p>
 <pre class="r"><code>census &lt;- rbind(data.table::fread('census/ss13pusa.csv', select = c('ST','SEX','AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE),
                 data.table::fread('census/ss13pusb.csv', select = c('ST','SEX', 'AGEP','RAC1P','SCHL','HISP','PWGTP'), data.table = FALSE))</code></pre>
 <pre><code>## 
-Read 37.2% of 1613672 rows
-Read 73.7% of 1613672 rows
+Read 34.7% of 1613672 rows
+Read 68.2% of 1613672 rows
 Read 1613672 rows and 7 (of 283) columns from 1.416 GB file in 00:00:04
 ## 
-Read 35.5% of 1519123 rows
-Read 75.0% of 1519123 rows
+Read 32.9% of 1519123 rows
+Read 69.1% of 1519123 rows
 Read 1519123 rows and 7 (of 283) columns from 1.333 GB file in 00:00:04</code></pre>
 <p>I refactored variables to match the ones in the training set so the models can be used to predict for the entire Census file</p>
 <pre class="r"><code>census$gender &lt;- ifelse(census$SEX == 1, &quot;Male&quot;, &quot;Female&quot;)

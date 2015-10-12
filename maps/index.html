@@ -101,19 +101,21 @@
                        .append("option")
                        .attr("value", function(d) { return d; })
                        .text(function(d,i){ return valsArray[i] })
-                       .each(function(d) { //take the low, median, and high
+                       .each(function(d) { //take the low, mean, and high
                          ranges[d] = d3.extent(data.features, function(e) {
                            return +e.properties[d]; });
-                         }).splice(1, 0, d3.median(data.features, function (e) {
-                                   return +e.properties[selected];
-                                 }));;
+                         ranges[d].splice(1, 0, d3.mean(data.features, function (e) {
+                           return +e.properties[selected];
+                         }));
+                         return ranges[d];
+                       });
 
 
           // define scale
           var color = d3.scale.linear()
               .domain(ranges[selected])
-              .range(['#F0F0D0', '#930F16']);
-          // ***END NEW***
+              .range(['#fee0d2', "#fc9272", '#de2d26']);
+
 
           function style(feature) {
             return {
@@ -154,10 +156,9 @@
         })
         layer.bindPopup('<b>State: </b>' + feature.properties.NAME + '<br>' +
         "<DT>" +
-        "<b><DT> Percent believe County headed in Right Direction: </b> " + d3.format(",.2f")(feature.properties.right) + '%<br>' +
+        "<b><DD> Percent believe County headed in Right Direction: </b> " + d3.format(",.2f")(feature.properties.right) + '%<br>' +
         "<b><DD> Percent Approve of President Obama: </b>" + d3.format(",.2f")(feature.properties.approve) + '%<br>' +
         "<b><DD> Percent Believe Economy is Top Priority: </b>" + d3.format(",.2f")(feature.properties.econ) + '%<br>' +
-
         "</DT>"
           )
         }
